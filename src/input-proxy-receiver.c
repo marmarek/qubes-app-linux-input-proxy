@@ -319,7 +319,7 @@ int parse_options(struct options *opt, int argc, char **argv) {
     int o;
 
     memset(opt, 0, sizeof(*opt));
-    opt->name = "Forwarded input device";
+    opt->name = NULL;
     opt->vendor = 0xffff;
     opt->product = 0xffff;
     LONG_SET_BIT(opt->caps.evbit, EV_SYN);
