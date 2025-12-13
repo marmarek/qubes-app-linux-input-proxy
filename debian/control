@@ -9,6 +9,7 @@ Homepage:  http://www.qubes-os.org
 Package: qubes-input-proxy-sender
 Architecture: any
 Depends: ${shlibs:Depends}, qubes-core-agent(>=3.0.25)
+Recommends: python3-pyinotify
 Description: Provides Simple input events proxy
  This package is intended to run in a qube with physical input device attached
  (for example USB VM). It sends events to a listener in dom0 which passes

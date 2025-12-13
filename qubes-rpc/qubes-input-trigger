@@ -7,7 +7,66 @@ import argparse
 import subprocess
 import os
 import sys
+import time
 from stat import *
+try:
+    import pyinotify
+    has_inotify = True
+except ImportError:
+    has_inotify = False
+
+
+GUI_STATUS_FILE_PATH = "/run/qubes/gui-agent.status"
+
+
+def wait_for_gui_session():
+    """Wait for user session in GUI domain to initialize. This is relevant for
+        potential qrexec policy prompt ('ask' action) - before GUI session is
+        started, policy prompt cannot be displayed and the call would be
+        denied."""
+
+    if not os.path.exists(GUI_STATUS_FILE_PATH):
+        print(f"{GUI_STATUS_FILE_PATH} does not exist, not waiting for GUI", file=sys.stderr)
+        return
+
+    if has_inotify:
+        wm = pyinotify.WatchManager()
+
+        class EventHandler(pyinotify.ProcessEvent):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.connected = False
+
+            def check_status_file(self):
+                with open(GUI_STATUS_FILE_PATH) as f:
+                    status = f.read()
+                    if status.strip() == "connected":
+                        self.connected = True
+
+            def process_IN_CLOSE_WRITE(self, event):
+                self.check_status_file()
+
+        handler = EventHandler()
+        notifier = pyinotify.Notifier(wm, handler)
+
+        mask = pyinotify.IN_CLOSE_WRITE  # watched events
+        wdd = wm.add_watch(GUI_STATUS_FILE_PATH, mask)
+
+        handler.check_status_file()
+        notifier.process_events()
+        while not handler.connected and notifier.check_events():
+            notifier.read_events()
+            notifier.process_events()
+    else:
+        connected = False
+        while True:
+            with open(GUI_STATUS_FILE_PATH) as f:
+                status = f.read()
+                if status.strip() == "connected":
+                    break
+
+            time.sleep(1)
+
 
 
 def get_args():
@@ -24,6 +83,12 @@ def get_args():
     parser.add_argument(
         "--event",
         required=False
+    )
+    parser.add_argument(
+        "--wait-for-gui",
+        required=False,
+        action="store_true",
+        help="Wait for GUI daemon to connect, for user to see qrexec prompt"
     )
     parser.add_argument(
         "--dom0",
@@ -165,6 +230,9 @@ def main():
 
     if args.event and not args.action:
         print("Please provide action to perform: add/remove")
+
+    if args.wait_for_gui:
+        wait_for_gui_session()
 
     if args.all:
         handle_all_events(args.dom0)

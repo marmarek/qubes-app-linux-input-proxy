@@ -32,6 +32,7 @@ This package is receiver part.
 Summary:    Simple input device proxy (sender)
 %{?systemd_requires}
 BuildRequires:  systemd
+Recommends:  python3-inotify
 
 %description sender
 Simple input device proxy, which pass events from /dev/input/eventN device, to
